@@ -369,9 +369,14 @@ void main(void)
 		p_event = GetEvent();
 		if (p_event != NULL)
 		{
-			if ((p_event->addr > 0) && (p_event->addr < 5)) SendPacket(&p_event->pack, p_event->addr);
-			if (p_event->addr != 5) p_event = NULL;
+			if ((p_event->addr > 0) && (p_event->addr < 5))
+			{
+				//if event not for main device - send it and mark as handled
+				SendPacket(&p_event->pack, p_event->addr);
+				p_event = NULL;
+			}
 		}
+		//Handle incoming event for main device and update display
 		switch (StateDev)
 		{
 			case INIT_ST:				//init
@@ -386,10 +391,10 @@ void main(void)
 
 			case IDLE_ST:				//ready to begin
 				if (p_event == NULL) break;
-				if (p_event->pack.cmd == START_ROUND)		//event arrived
+				if (p_event->pack.cmd == START_ROUND)	//event arrived
 				{
 					_CLI();
-					ReadyTimer = 3000;			//30 second
+					ReadyTimer = 3000;					//30 second
 					_SEI();
 					ClrAllDisp();
 					WriteStr(" √отовность\n");
@@ -400,7 +405,7 @@ void main(void)
 				}
 				break;
 
-			case READY_TIME_ST:			//time to rase altitude (F3F - 30 sec)
+			case READY_TIME_ST:							//time to rase altitude (F3F - 30 sec)
 				if (Flags & (1 << UPDATE_DISP_TIME))	//update ready timer
 				{
 					Flags &= ~(1 << UPDATE_DISP_TIME);
@@ -414,21 +419,21 @@ void main(void)
 						LapNum = 0;
 						LapResult = Results;
 						Flags |= ((1 << UPDATE_DISP_LAP) + (1 << UPDATE_DISP_TIME) + (1 << TOUR_GO));
-						StateDev = TIME_OUT_START_ST;							//go to new state
+						StateDev = TIME_OUT_START_ST;	//go to new state
 					}
 				}
-				if (p_event == NULL) break;										//no event
-				if (p_event->pack.cmd == TIME_STAMP)		//event arrived from strart point
+				if (p_event == NULL) break;				//no event
+				if (p_event->pack.cmd == TIME_STAMP)	//event arrived from strart point
 				{
-					if (Flags & ( 1 << OUT_OF_BASE))		//was out of base - start the rase
+					if (Flags & ( 1 << OUT_OF_BASE))	//was out of base - start the rase
 					{
 						ClrAllDisp();
 						LapNum = 0;
 						LapResult = Results;
 						Flags |= ((1 << UPDATE_DISP_LAP) + (1 << UPDATE_DISP_TIME) + (1 << TOUR_GO));
 						SndOn(SND_LONG);
-						ReadyTimer = 150;					//1.5 sec no reaction on event
-						StateDev = TOUR_ST;					//tour running
+						ReadyTimer = 150;				//1.5 sec no reaction on event
+						StateDev = TOUR_ST;				//tour running
 						speed = p_event->pack.param0;
 						PostEvent(SOUND, 2, TURN_BTN);
 					}
@@ -445,31 +450,31 @@ void main(void)
 			case TIME_OUT_START_ST:
 				if (Flags & (1 << UPDATE_DISP_LAP)) UpdateDispLap(LapNum);
 				if (Flags & (1 << UPDATE_DISP_TIME)) UpdateDispTime(Result);
-				if (p_event == NULL) break;		//no event
-				if (p_event->pack.cmd == TIME_STAMP)		// event arrived from start point
+				if (p_event == NULL) break;				//no event
+				if (p_event->pack.cmd == TIME_STAMP)	// event arrived from start point
 				{
-					if (Flags & ( 1 << OUT_OF_BASE))		//was out of base - start the rase
+					if (Flags & ( 1 << OUT_OF_BASE))	//was out of base - start the rase
 					{
 						SndOn(SND_LONG);
-						ReadyTimer = 150;			//1.5 сек не будем реагировать на кнопки флагов
-						StateDev = TOUR_ST;			//переходим в отсчет тура
+						ReadyTimer = 150;				//1.5 sec - no reaction on points event
+						StateDev = TOUR_ST;
 						speed = p_event->pack.param0;
 						PostEvent(SOUND, 2, TURN_BTN);
 					}
 					else
 					{
-						Flags |= (1 << OUT_OF_BASE);		//out of base wait event from start point again
+						Flags |= (1 << OUT_OF_BASE);	//out of base wait event from start point again
 						SndOn(SND_SHORT_SHORT);
 					}
 					break;
 				}
-				if (p_event->pack.cmd == CANCEL) StateDev = INIT_ST;	//приехало событие отмены. переходим через инит в готовность
+				if (p_event->pack.cmd == CANCEL) StateDev = INIT_ST;
 				break;
 
-			case TOUR_ST:				//отсчет тура
+			case TOUR_ST:								//Tour is in process
 				if (Flags & (1 << UPDATE_DISP_LAP))
 				{
-					if (LapNum == 1)		// first pass - print the speed
+					if (LapNum == 1)					// first pass - print the speed
 					{
 						SetCursDisp(0,0);
 						WriteStr("—корость ");
@@ -491,57 +496,57 @@ void main(void)
 					StateDev = STOP_ST;				//переходим в состо€ние финиша
 					break;
 				}*/
-				if (p_event->pack.cmd == TIME_STAMP)		//приехало событие отмашки стартовой вешки
+				if (p_event->pack.cmd == TIME_STAMP)		//event from turn point
 				{
-					*LapResult = p_event->pack.param0;		//сохран€ем врем€ "круга"
+					*LapResult = p_event->pack.param0;		//save time of pass
 					Flags |= 1 << UPDATE_DISP_LAP;
-					if (LapNum >= 9)			//если был последний круг
+					if (LapNum >= 9)					//if it was the last pass
 					{
-						Flags &= ~(1 << TOUR_GO);		//снимаем флаг тура
-//						PostEvent(STOP, 0, MAIN_DEV);		//генерим событие финиша
+						Flags &= ~(1 << TOUR_GO);		//clear tour flag and issue event of finish
+//						PostEvent(STOP, 0, MAIN_DEV);
 						PostEvent(CANCEL, 0, START_BTN);
 						PostEvent(SOUND, 3, START_BTN);
 						PostEvent(CANCEL, 0, TURN_BTN);
 						PostEvent(SOUND, 3, TURN_BTN);
 						SndOnRing(40);
-						StateDev = STOP_ST;				//переходим в состо€ние финиша
+						StateDev = STOP_ST;
 					}
-					else					//если не последний круг
+					else							//not last pass
 					{
-						if (LapNum & 0x01) 			//круг четный пикаем поворотной вешкой (порт переключитьс€ на нее)
+						if (LapNum & 0x01) 			//even pass - sound from turn point
 						{
 							PostEvent(SOUND, 1, TURN_BTN);
 						}
-						else					//круг не четный, пикаем старотовой кнопкой
+						else						//even pass - sound from start point
 						{
 							PostEvent(SOUND, 1, START_BTN);
 						}
 						LapNum++;
 						LapResult++;
-						if (LapNum == 8) SndOn(SND_SHORT_LONG);				//предпоследний ходка
+						if (LapNum == 8) SndOn(SND_SHORT_LONG);		//penultimate pass
 						else SndOn(SND_SHORT_LONG);
 					}
 					break;
 				}
-				if (p_event->pack.cmd == CANCEL) StateDev = INIT_ST;	//приехало событие отмены. переходим через инит в готовность
+				if (p_event->pack.cmd == CANCEL) StateDev = INIT_ST;
 				break;
 
-			case STOP_ST:				//финиш
+			case STOP_ST:				//FINISH state
 				if (Flags & (1 << UPDATE_DISP_LAP)) UpdateDispLap(LapNum);
 				if (p_event == NULL) break;
-				if (p_event->pack.cmd == PREV)			//нажата кнопка "-"
+				if (p_event->pack.cmd == PREV)			//button "-"
 				{
 					if (LapNum) LapNum--;
 					else LapNum = 9;
 					Flags |= (1 << UPDATE_DISP_LAP);
 				}
-				if (p_event->pack.cmd == NEXT)		//нажата кнопка "+"
+				if (p_event->pack.cmd == NEXT)			//button "+"
 				{
 					if (LapNum != 9) LapNum++;
 					else LapNum = 0;
 					Flags |= (1 << UPDATE_DISP_LAP);
 				}
-				if (p_event->pack.cmd == CANCEL) StateDev = INIT_ST;	//приехало событие отмены. переходим через инит в готовность
+				if (p_event->pack.cmd == CANCEL) StateDev = INIT_ST;	
 				break;
 			default:
 				break;
