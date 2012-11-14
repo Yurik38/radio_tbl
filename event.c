@@ -28,12 +28,30 @@ void InitEventList(void)
 }
 
 /************************************************************************/
-void PostEvent(T_EVENT *ev, uchar send)
+/* send: маска порта. 0 - не передавать*/
+void PostEvent(T_EVENT *ev, uchar addr_msk)
 {
-  wr_event_ptr->name = ev->name;
-  wr_event_ptr->param = ev->param;
-  if (send) SendEvent(wr_event_ptr);
-  _IncEventPtr(wr_event_ptr);
+  uchar i = 0;
+  if (addr_msk == 0)
+  {
+    wr_event_ptr->name = ev->name;
+    wr_event_ptr->param = ev->param;
+    wr_event_ptr->addr = 0;
+    _IncEventPtr(wr_event_ptr);
+    return;
+  }
+  while (addr_msk)
+  {
+    i++;
+    addr_msk >>= 1;
+    if (addr_msk & 0x01)
+    {
+      wr_event_ptr->name = ev->name;
+      wr_event_ptr->param = ev->param;
+      wr_event_ptr->addr = i;
+      _IncEventPtr(wr_event_ptr);
+    }
+  }
 }
 
 /************************************************************************/
@@ -41,12 +59,19 @@ T_EVENT* GetEvent(void)
 {
   T_EVENT* tmp;
 
-  CheckRxBuf();
-
   if (rd_event_ptr == wr_event_ptr) return NULL;
   tmp = rd_event_ptr;
-  _IncEventPtr(rd_event_ptr);
-  return tmp;
+  if (tmp->addr == 0)
+  {
+    _IncEventPtr(rd_event_ptr);
+    return tmp;
+  }
+  if (UARTBusyFlag == 0)
+  {
+    SendEvent(tmp);
+    _IncEventPtr(rd_event_ptr);
+  }
+  return NULL;
 }
 
 /************************************************************************/
@@ -71,7 +96,7 @@ void SendEvent(T_EVENT* p_ev)
     tmp++;
   }
   tx_buf[PACKET_SIZE - 1] = crc;
-  TxBuffer(tx_buf, PACKET_SIZE);
+  TxBuffer(tx_buf, PACKET_SIZE, );
 }
 
 /************************************************************************/
