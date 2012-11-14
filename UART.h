@@ -8,18 +8,18 @@
 #error  "UBRR value is not correct!!!"
 #endif
 
-#define _UART_RX_EN	UCSRB |= (1 << RXEN)
-#define _UART_RX_DIS	UCSRB &= ~(1 << RXEN)
+#define		_UART_RX_EN	UCSRB |= (1 << RXEN)
+#define		_UART_RX_DIS	UCSRB &= ~(1 << RXEN)
 
-#define _UART_TX_EN	UCSRB |= (1 << TXEN)
-#define _UART_TX_DIS	UCSRB &= ~(1 << TXEN)
+#define		_UART_TX_EN	UCSRB |= (1 << TXEN)
+#define		_UART_TX_DIS	UCSRB &= ~(1 << TXEN)
 
 #define		LEDPORT		PORTC
 #define		_LedOn(p)	LEDPORT &= ~(1 << p)
 #define		_LedOff(p)	LEDPORT |= (1 << p)
 #define		_LedOffAll	LEDPORT |= 0x0F
 
-/* адреса устройств*/
+/* devices address*/
 #define		START_BTN	1
 #define		TURN_BTN	2
 #define		UART3		3
@@ -34,8 +34,8 @@ void InitUART(uint baud_rate);
 void TxBuffer(uchar* FirstByte, uchar Cnt);
 uchar GetChar(void);
 uchar GetByte(uchar *a);
-void SendPacket(TPACKET* packet, uchar addr);
-TPACKET* GetPacket(void);
+void SendPacket(T_EVENT* event);
+T_EVENT* GetPacket(void);
 
 
 #endif //_UART_H_

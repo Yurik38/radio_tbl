@@ -17,238 +17,223 @@ uchar	rx_rd_ptr;
 uchar	rx_wr_ptr;
 uchar	UARTBusyFlag;
 uchar 	LedTime[4];
-uchar	ID[4];
+uchar	TxID[4];
+uchar	RxID[4];
 
-TPACKET	rx_packet;
+T_EVENT	rx_event;
 
 
 /************************************************************************/
 #pragma vector = USART_RXC_vect
 __interrupt void USART_RXC_vector(void)
 {
-  uchar a = rx_wr_ptr;
-  a++;
-  if (a >= RX_BUF_SIZE) a = 0;
-  if (a == rx_rd_ptr)
-  {
-    a = UDR;
-    return;
-  }
-  rx_buffer[rx_wr_ptr] = UDR;
-  rx_wr_ptr = a;
+	uchar a = rx_wr_ptr;
+	a++;
+	if (a >= RX_BUF_SIZE) a = 0;
+	if (a == rx_rd_ptr)
+	{
+		a = UDR;
+		return;
+	}
+	rx_buffer[rx_wr_ptr] = UDR;
+	rx_wr_ptr = a;
 }
 
 /************************************************************************/
 #pragma vector = USART_UDRE_vect
 __interrupt void USART_UDRE_vector(void)
 {
-  if (tx_cnt--)
-  {
-    UDR = *tx_ptr;
-    tx_ptr++;
-  }
-  else 				//«апрещаем прерывание по пустому UDR
-  {
-    UCSRB &= ~(1 << UDRIE);
-    UCSRB |= 1 << TXCIE;	//разреш прерыв по окончании передачи
-  }
+	if (tx_cnt--)
+	{
+		UDR = *tx_ptr;
+		tx_ptr++;
+	}
+	else 				//«апрещаем прерывание по пустому UDR
+	{
+		UCSRB &= ~(1 << UDRIE);
+		UCSRB |= 1 << TXCIE;	//разреш прерыв по окончании передачи
+	}
 }
 
 /************************************************************************/
 #pragma vector = USART_TXC_vect
 __interrupt void USART_TXC_vector(void)
 {
-  UCSRB &= ~(1 << TXCIE);		
-  UARTBusyFlag = 0;
+	UCSRB &= ~(1 << TXCIE);
+	UARTBusyFlag = 0;
 }
 
 /************************************************************************/
 /*»нициализаци€ —ќћ-порта. BaudRate передаетс€ в сотл€х. “ипа 96 - 9600, 1152 - 115200 и т.д.*/
 void InitUART(uint baud_rate)
 {
-  uchar u2x_bit = 0;
-  uint  ubrr_reg;
+	uchar u2x_bit = 0;
+	uint  ubrr_reg;
 
-  ubrr_reg = (CPU_FREQ/100 * (1 + u2x_bit))/(16 * baud_rate) - 1;
-  UBRRH = _HiByte(ubrr_reg);
-  UBRRL = ubrr_reg;
-  UCSRA |= (U2X_BIT << U2X);
-  UCSRB = (1 << TXCIE) + (1 << RXCIE) + (1 << TXEN) + (1 << RXEN);
-  UARTBusyFlag = 0;
-  ID[0] = 0;
-  ID[1] = 0;
-  ID[2] = 0;
-  ID[3] = 0;
+	ubrr_reg = (CPU_FREQ/100 * (1 + u2x_bit))/(16 * baud_rate) - 1;
+	UBRRH = _HiByte(ubrr_reg);
+	UBRRL = ubrr_reg;
+	UCSRA |= (U2X_BIT << U2X);
+	UCSRB = (1 << TXCIE) + (1 << RXCIE) + (1 << TXEN) + (1 << RXEN);
+	UARTBusyFlag = 0;
+	TxID[0] = 0;
+	TxID[1] = 0;
+	TxID[2] = 0;
+	TxID[3] = 0;
+	RxID[0] = 0;
+	RxID[1] = 0;
+	RxID[2] = 0;
+	RxID[3] = 0;
 }
 
 /************************************************************************/
-/*выбрать необходимое устройство*/
+/*Set active device*/
 void SetCS(uchar addr)
 {
-  uchar a;
-  
-  a = 0x08 << addr;
-  PORTD &= 0x0F;
-  PORTD |= a;
+	uchar a;
+
+	a = 0x08 << addr;
+	PORTD &= 0x0F;
+	PORTD |= a;
 }
 
 /************************************************************************/
-/*выбрать необходимое устройство*/
+/*get active device*/
 uchar GetCS(void)
 {
-  if (PIND & 0x10) return 1;
-  if (PIND & 0x20) return 2;
-  return 3;
+	if (PIND & 0x10) return 1;
+	if (PIND & 0x20) return 2;
+	return 3;
 }
 
 /************************************************************************/
 void Morgun(uchar a)
 {
-  uchar i;
-  
-  if (a > 0) i = a - 1;
-  _LedOn(i);
-  LedTime[i] = 20;
+	_LedOn(a - 1);
+	LedTime[a- 1] = 20;
 }
-  
+
 
 /************************************************************************/
 void TxBuffer(uchar* FirstByte, uchar Cnt)
 {
-  UARTBusyFlag = 1;
-  UDR = *FirstByte;
-  tx_cnt = Cnt - 1;
-  if (tx_cnt)
-  {
-    tx_ptr = FirstByte + 1;
-    UCSRB |= (1 << UDRIE); 	//≈сли есть еще что передавать, разрешаем прерывание по пустому UDR
-  }
+	UARTBusyFlag = 1;
+	UDR = *FirstByte;
+	tx_cnt = Cnt - 1;
+	if (tx_cnt)
+	{
+		tx_ptr = FirstByte + 1;
+		UCSRB |= (1 << UDRIE); 	//≈сли есть еще что передавать, разрешаем прерывание по пустому UDR
+	}
 }
 
 /************************************************************************/
 uchar GetChar(void)
 {
-  uchar a;
+	uchar a;
 
-  if (rx_rd_ptr == rx_wr_ptr) return 0;
-  a = rx_buffer[rx_rd_ptr++];
-  if (rx_rd_ptr >= RX_BUF_SIZE) rx_rd_ptr = 0;
-  return a;
+	if (rx_rd_ptr == rx_wr_ptr) return 0;
+	a = rx_buffer[rx_rd_ptr++];
+	if (rx_rd_ptr >= RX_BUF_SIZE) rx_rd_ptr = 0;
+	return a;
 }
 
 /************************************************************************/
 /*прочитать текущий байт в указатель а. ¬ернуть 1 если есть новые данные, иначе, 0*/
 uchar GetByte(uchar *a)
 {
-  if (rx_rd_ptr == rx_wr_ptr) return 0;
-  *a = rx_buffer[rx_rd_ptr++];
-  if (rx_rd_ptr >= RX_BUF_SIZE) rx_rd_ptr = 0;
-  return 1;
+	if (rx_rd_ptr == rx_wr_ptr) return 0;
+	*a = rx_buffer[rx_rd_ptr++];
+	if (rx_rd_ptr >= RX_BUF_SIZE) rx_rd_ptr = 0;
+	return 1;
 }
 
 /************************************************************************/
-void SendPacket(TPACKET* packet, uchar addr)
+void SendPacket(T_EVENT* event)
 {
-  uchar i, crc;
-  uchar ret;
-  uchar* p_tmp;
-  Delay1 = 5;
-  while ((UARTBusyFlag) || (Delay1));
-  packet->id = ID[addr-1];
-  ID[addr-1]++;
-  p_tmp = (uchar*)packet;
-  
-  tx_buffer[0] = 0x7E;
-  crc = 0;
-  ret = 1;
-  
-  for (i = 0; i < 4; i++)
-  {
-    if (p_tmp[i] == 0x7E) 
-    {
-      tx_buffer[ret] = 0x7D;
-      ret++;
-      tx_buffer[ret] = 0x5E;
-      ret++;
-    }
-    else if (p_tmp[i] == 0x7D) 
-    {
-      tx_buffer[ret] = 0x7D;
-      ret++;
-      tx_buffer[ret] = 0x5D;
-      ret++;
-    }
-    else 
-    {
-      tx_buffer[ret] = p_tmp[i];
-      ret++;
-    }
-    crc += p_tmp[i];
-  }
-  tx_buffer[ret] = crc;
-  ret++;
-  SetCS(addr);
-  Morgun(addr);
-  TxBuffer(tx_buffer, ret);
+	uchar i, crc;
+	uchar cnt;
+	uchar addr = event->addr;
+
+	Delay1 = 5;
+
+	while ((UARTBusyFlag) || (Delay1));
+	TxID[addr-1]++;
+
+	tx_buffer[0] = 0x7E;
+	crc = 0;
+	ret = 1;
+
+	for (i = 1; i < sizeof (T_EVENT) + 1; i++)
+	{
+		tx_buffer[cnt] = *event;
+		crc += *event;
+		event++;
+	}
+	tx_buffer[i] = TxID[addr-1];
+	i++;
+	tx_buffer[i] = crc;
+	i++;
+	SetCS(addr);
+	Morgun(addr);
+	TxBuffer(tx_buffer, i);
 }
 
 /************************************************************************/
-TPACKET* GetPacket(void)
+T_EVENT GetPacket(void)
 {
-  static uchar parse_state = 0;
-  static uchar crc, cnt, CurID;
-  static uchar *buf;
-  uchar rx_byte;
-  
+	static uchar parse_state = 0;
+	static uchar crc, cnt, cur_ID;
+	static uchar *buf;
+	uchar rx_byte;
 
-  if (GetByte(&rx_byte))
-  {
-    Delay1 = 5;
-    switch (parse_state)
-    {
-    case 0:
-      if (rx_byte == 0x7E)		  //начало пакета
-      {
-        parse_state = 1;
-        crc = 0;
-        cnt = 0;
-        buf = (uchar*)&rx_packet;
-      }
-      break;
-        
-    case 1:  
-      if (rx_byte == 0x7D) parse_state = 2;
-      else
-      {
-        buf[cnt] = rx_byte;
-        crc += rx_byte;
-        if (cnt >= 3) parse_state = 3;
-        else cnt++;
-      }
-      break;
-      
-    case 2:
-      rx_byte ^= 0x20;
-      buf[cnt] = rx_byte;
-      crc += rx_byte;
-      if (cnt >= 3) parse_state = 3;
-      else {cnt++; parse_state = 1;}
-      break;
-        
-    case 3:
-      parse_state = 0;
-      if (crc != rx_byte) break;		
-      if (CurID == rx_packet.id) break; 		
-      CurID = rx_packet.id;
-      //CntRxPacket++;
-      crc = GetCS();
-      Morgun(crc);
-      return &rx_packet; 
-      
-      default: 
-        parse_state = 0;
-        break;
-      }
-    }
-  return NULL;
+
+	if (GetByte(&rx_byte))
+	{
+		Delay1 = 5;
+		switch (parse_state)
+		{
+			case 0:
+				if (rx_byte == 0x7E)		  //начало пакета
+				{
+					parse_state = 1;
+					crc = 0;
+					cnt = 0;
+					buf = (uchar*)&rx_event;
+				}
+				break;
+
+			case 1://rx event
+				buf[cnt] = rx_byte;
+				crc += rx_byte;
+				cnt++;
+				if (cnt >= sizeof(T_EVENT)) parse_state++;
+				break;
+
+			case 2://rx id
+				cur_ID = rx_byte;
+				crc += rx_byte;
+				parse_state++;
+				break;
+
+			case 3://rx crc and check
+				parse_state = 0;
+				cnt = GetCS();
+				if (crc != rx_byte) break;			//CRC mismatch
+				if (RxID[cnt] == cur_ID) break;		//repeat packet
+				RxID[cnt] = cur_ID;
+				Morgun(cnt);
+				return &rx_event;
+
+			default:
+				parse_state = 0;
+				break;
+		}
+	}
+	else
+	{
+		if (parse_state)	//if time expired reset parser
+			if(Delay1 == 0) parse_state = 0;
+	}
+	return NULL;
 }
