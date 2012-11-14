@@ -60,8 +60,7 @@ typedef enum
 	READY_TIME_ST,
 	TIME_OUT_START_ST,
 	TOUR_ST,
-	STOP_ST,
-	VIEW_ST,
+	STOP_ST
 }DEV_STATE;
 
 
@@ -83,7 +82,6 @@ uint			ReadyTimer;
 uchar			CurCode;		//for buttons handler
 uchar volatile	ScanCode;		
 uchar volatile	TmpCode;
-//uchar volatile	Drebezg;		
 uchar volatile	Delay1;			//variable for LCD & UART delay
 uchar			StateDev;
 uchar volatile	SndTime;
@@ -338,7 +336,6 @@ void main(void)
 
 	//  uint tmp_param;
 	T_EVENT* p_event;
-	TPACKET* p_packet;
 
 	uint speed, tmp;
 
@@ -361,21 +358,22 @@ void main(void)
 	for(;;)
 	{
 		KeyHandler();
-		p_packet = GetPacket();
-		if (p_packet != NULL)
-		{
-			PostEvent(p_packet->cmd, p_packet->param0, MAIN_DEV);
-		}
+
+		p_event = GetPacket();
+		if (p_event != NULL)
+			PostEvent(p_event->cmd, p_event->param0, p_event->addr);
+
 		p_event = GetEvent();
 		if (p_event != NULL)
 		{
 			if ((p_event->addr > 0) && (p_event->addr < 5))
 			{
 				//if event not for main device - send it and mark as handled
-				SendPacket(&p_event->pack, p_event->addr);
+				SendPacket(p_event);
 				p_event = NULL;
 			}
 		}
+
 		//Handle incoming event for main device and update display
 		switch (StateDev)
 		{

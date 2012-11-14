@@ -18,36 +18,12 @@
 #define		NUM_PACKET	0x11
 #define		VOLTAGE		0x12
 
-/*typedef enum
-{
-  NONE,
-  START_TOUR_EV,
-  NEXT_EV,
-  PREV_EV,
-  CANCEL_EV,
-  FLAG_1_EV,
-  FLAG_2_EV,
-  FLAG_3_EV,
-  FLAG_4_EV,
-  READY_TIME_OUT_EV,
-  STOP_EV
-}EVENTS;*/
-
 typedef struct
 {
-  uchar		cmd;
-  uint		param0;
-  uchar		id;
-  uchar		crc;
-}TPACKET;
-
-typedef struct
-{
-  TPACKET	pack;
-  uchar		addr;
+	uchar		cmd;
+	uint		param0;
+	uchar		addr;
 }T_EVENT;
-
-
 
 void InitEventList(void);
 void PostEvent(uchar cmd, uint param, uchar addr);
