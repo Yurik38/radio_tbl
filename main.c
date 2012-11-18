@@ -46,10 +46,10 @@ Fuses
 #define		_LedOffAll	LEDPORT |= 0x0F
 
 
-//#define		_SndOn		PORTD &= ~(0x0C)
-//#define		_SndOff		PORTD |= (0x0C)
-#define		_SndOn		PORTC_Bit3 = 0
-#define		_SndOff		PORTC_Bit3 = 1
+#define		_SndOn		PORTD &= ~(0x0C)
+#define		_SndOff		PORTD |= (0x0C)
+//#define		_SndOn		PORTC_Bit3 = 0
+//#define		_SndOff		PORTC_Bit3 = 1
 
 
 
@@ -309,6 +309,7 @@ void UpdateDispLap(uchar num)
 {
 	Flags &= ~(1 << UPDATE_DISP_LAP);
 	if (num > 9) return;
+    ClrStrDisp(0);
 	SetCursDisp(0,1);
 	putchar((num + 1) / 10 + 0x30);
 	putchar((num + 1) % 10 + 0x30);
@@ -418,6 +419,7 @@ void main(void)
 						LapResult = Results;
 						Flags |= ((1 << UPDATE_DISP_LAP) + (1 << UPDATE_DISP_TIME) + (1 << TOUR_GO));
 						StateDev = TIME_OUT_START_ST;	//go to new state
+                        Result = 0;
 					}
 				}
 				if (p_event == NULL) break;				//no event
@@ -433,6 +435,9 @@ void main(void)
 						ReadyTimer = 150;				//1.5 sec no reaction on event
 						StateDev = TOUR_ST;				//tour running
 						speed = p_event->param0;
+                        _CLI();
+                        Result = p_event->param0;
+                        _SEI();
 						PostEvent(SOUND, 2, TURN_BTN);
 					}
 					else 		//out of base wait event from start point again
@@ -457,6 +462,9 @@ void main(void)
 						ReadyTimer = 150;				//1.5 sec - no reaction on points event
 						StateDev = TOUR_ST;
 						speed = p_event->param0;
+                        _CLI();
+                        Result = p_event->param0;
+                        _SEI();
 						PostEvent(SOUND, 2, TURN_BTN);
 					}
 					else
@@ -492,6 +500,9 @@ void main(void)
 				if (p_event->cmd == TIME_STAMP)			//event from turn point
 				{
 					*LapResult = p_event->param0;		//save time of pass
+                    _CLI();
+                    Result = p_event->param0;
+                    _SEI();
 					Flags |= 1 << UPDATE_DISP_LAP;
 					if (LapNum >= 9)					//if it was the last pass
 					{
@@ -514,10 +525,10 @@ void main(void)
 						{
 							PostEvent(SOUND, 1, START_BTN);
 						}
+						if (LapNum == 8) SndOn(SND_SHORT_LONG);		//penultimate pass
+						else SndOn(SND_SHORT);
 						LapNum++;
 						LapResult++;
-						if (LapNum == 8) SndOn(SND_SHORT_LONG);		//penultimate pass
-						else SndOn(SND_SHORT_LONG);
 					}
 					break;
 				}
