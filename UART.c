@@ -2,8 +2,17 @@
 #include "event.h"
 #include "UART.h"
 
-#define	RX_BUF_SIZE		8
+#define RX_BUF_SIZE		8
 #define TX_BUF_SIZE		8
+
+#define MAIN_DEV
+
+#ifdef MAIN_DEV
+#define NUM_CS			4
+#elif
+#define NUM_CS			1
+#endif
+
 
 extern uchar volatile	Delay1;
 
@@ -15,9 +24,11 @@ uchar	rx_buffer[RX_BUF_SIZE];
 uchar	rx_rd_ptr;
 uchar	rx_wr_ptr;
 uchar	UARTBusyFlag;
-uchar 	LedTime[4];
-uchar	TxID[4];
-uchar	RxID[4];
+
+uchar 	LedTime[NUM_CS];
+uchar	TxID[NUM_CS];
+uchar	RxID[NUM_CS];
+
 
 T_EVENT	rx_event;
 
@@ -66,7 +77,7 @@ __interrupt void USART_TXC_vector(void)
 /*Инициализация СОМ-порта. BaudRate передается в сотлях. Типа 96 - 9600, 1152 - 115200 и т.д.*/
 void InitUART(uint baud_rate)
 {
-	uchar u2x_bit = 0;
+	uchar i, u2x_bit = 0;
 	uint  ubrr_reg;
 
 	ubrr_reg = (CPU_FREQ/100 * (1 + u2x_bit))/(16 * baud_rate) - 1;
@@ -75,14 +86,11 @@ void InitUART(uint baud_rate)
 	UCSRA |= (U2X_BIT << U2X);
 	UCSRB = (1 << TXCIE) + (1 << RXCIE) + (1 << TXEN) + (1 << RXEN);
 	UARTBusyFlag = 0;
-	TxID[0] = 0;
-	TxID[1] = 0;
-	TxID[2] = 0;
-	TxID[3] = 0;
-	RxID[0] = 0;
-	RxID[1] = 0;
-	RxID[2] = 0;
-	RxID[3] = 0;
+	for (i = 0; i < NUM_CS; i++)
+	{
+		TxID[i] = 0;
+		RxID[1] = 0;
+	}
 }
 
 /************************************************************************/
@@ -151,14 +159,28 @@ uchar GetByte(uchar *a)
 void SendPacket(T_EVENT* event)
 {
 	uchar i, crc;
-	uchar addr = event->addr;
-    uchar* ptr = (uchar*)event;
+	uchar addr;
+	uchar *ptr = (uchar*)event;
+	uchar *p_id;
 
 	Delay1 = 5;
 
 	while ((UARTBusyFlag) || (Delay1));
-	TxID[addr-1]++;
+#ifdef MAIN_DEV
+	addr = event->addr;
+	//++++
+		//for debug only!! always CS = 1
+		SetCS(1);
+	//	SetCS(addr);
 
+	Morgun(addr);
+	p_id = &TxID[addr-1];
+#elif
+	//Make morgun
+	p_id = &TxID[0];
+#endif
+
+	*p_id++;
 	tx_buffer[0] = 0x7E;
 	crc = 0;
 
@@ -168,16 +190,11 @@ void SendPacket(T_EVENT* event)
 		crc += *ptr;
 		ptr++;
 	}
-	tx_buffer[i] = TxID[addr-1];
-    crc += tx_buffer[i];
+	tx_buffer[i] = *p_id;
+	crc += tx_buffer[i];
 	i++;
 	tx_buffer[i] = crc;
 	i++;
-//++++
-    //for debug only!! always CS = 1
-	SetCS(1);
-//	SetCS(addr);
-	Morgun(addr);
 	TxBuffer(tx_buffer, i);
 }
 
@@ -220,11 +237,19 @@ T_EVENT* GetPacket(void)
 
 			case 3://rx crc and check
 				parse_state = 0;
-				cnt = GetCS();
 				if (crc != rx_byte) break;			//CRC mismatch
+#ifdef MAIN_DEV
+				cnt = GetCS();
+#elif
+				cnt = 0;
+#endif
 				if (RxID[cnt] == cur_ID) break;		//repeat packet
 				RxID[cnt] = cur_ID;
+#ifdef MAIN_DEV
 				Morgun(cnt);
+#elif
+				//Make morgun
+#endif
 				return &rx_event;
 
 			default:
