@@ -5,9 +5,9 @@
 #define RX_BUF_SIZE		8
 #define TX_BUF_SIZE		8
 
-#define MAIN_DEV
+//#define _MAIN
 
-#ifdef MAIN_DEV
+#ifdef _MAIN
 #define NUM_CS			4
 #elif
 #define NUM_CS			1
@@ -166,7 +166,7 @@ void SendPacket(T_EVENT* event)
 	Delay1 = 5;
 
 	while ((UARTBusyFlag) || (Delay1));
-#ifdef MAIN_DEV
+#ifdef _MAIN
 	addr = event->addr;
 	//++++
 		//for debug only!! always CS = 1
@@ -238,14 +238,14 @@ T_EVENT* GetPacket(void)
 			case 3://rx crc and check
 				parse_state = 0;
 				if (crc != rx_byte) break;			//CRC mismatch
-#ifdef MAIN_DEV
+#ifdef _MAIN
 				cnt = GetCS();
 #elif
 				cnt = 0;
 #endif
 				if (RxID[cnt] == cur_ID) break;		//repeat packet
 				RxID[cnt] = cur_ID;
-#ifdef MAIN_DEV
+#ifdef _MAIN
 				Morgun(cnt);
 #elif
 				//Make morgun
