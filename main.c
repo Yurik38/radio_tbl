@@ -40,10 +40,10 @@ Fuses
 #define		_mS10		~(432 - 1)  //Prescaller 256
 
 
-#define		LEDPORT		PORTC
+/*#define		LEDPORT		PORTC
 #define		_LedOn(p)	LEDPORT &= ~(1 << p)
 #define		_LedOff(p)	LEDPORT |= (1 << p)
-#define		_LedOffAll	LEDPORT |= 0x0F
+#define		_LedOffAll	LEDPORT |= 0x0F*/
 
 
 #define		_SndOn		PORTD &= ~(0x0C)
@@ -434,10 +434,12 @@ void main(void)
 						SndOn(SND_LONG);
 						ReadyTimer = 150;				//1.5 sec no reaction on event
 						StateDev = TOUR_ST;				//tour running
-						speed = p_event->param0;
+                        Result = 0;
+						speed = Result;
+/*						speed = p_event->param0;
                         _CLI();
                         Result = p_event->param0;
-                        _SEI();
+                        _SEI();*/
 						PostEvent(SOUND, 2, TURN_BTN);
 					}
 					else 		//out of base wait event from start point again
@@ -461,10 +463,11 @@ void main(void)
 						SndOn(SND_LONG);
 						ReadyTimer = 150;				//1.5 sec - no reaction on points event
 						StateDev = TOUR_ST;
-						speed = p_event->param0;
+						speed = Result;
+/*						speed = p_event->param0;
                         _CLI();
                         Result = p_event->param0;
-                        _SEI();
+                        _SEI();*/
 						PostEvent(SOUND, 2, TURN_BTN);
 					}
 					else
@@ -499,10 +502,11 @@ void main(void)
 				if (p_event == NULL) break;
 				if (p_event->cmd == TIME_STAMP)			//event from turn point
 				{
-					*LapResult = p_event->param0;		//save time of pass
+					*LapResult = Result;		//save time of pass
+/*					*LapResult = p_event->param0;		//save time of pass
                     _CLI();
                     Result = p_event->param0;
-                    _SEI();
+                    _SEI();*/
 					Flags |= 1 << UPDATE_DISP_LAP;
 					if (LapNum >= 9)					//if it was the last pass
 					{

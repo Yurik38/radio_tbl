@@ -5,13 +5,8 @@
 #define RX_BUF_SIZE		8
 #define TX_BUF_SIZE		8
 
-//#define _MAIN
+//#define MAIN_DEV
 
-#ifdef _MAIN
-#define NUM_CS			4
-#elif
-#define NUM_CS			1
-#endif
 
 
 extern uchar volatile	Delay1;
@@ -89,7 +84,7 @@ void InitUART(uint baud_rate)
 	for (i = 0; i < NUM_CS; i++)
 	{
 		TxID[i] = 0;
-		RxID[1] = 0;
+		RxID[i] = 0;
 	}
 }
 
@@ -114,10 +109,10 @@ uchar GetCS(void)
 }
 
 /************************************************************************/
-void Morgun(uchar a)
+inline void Morgun(uchar led, uchar *tmr)
 {
-	_LedOn(a - 1);
-	LedTime[a- 1] = 20;
+	_LedOn(led);
+	*tmr = 20;
 }
 
 
@@ -173,14 +168,14 @@ void SendPacket(T_EVENT* event)
 		SetCS(1);
 	//	SetCS(addr);
 
-	Morgun(addr);
+	Morgun(addr - 1, &LedTime[addr - 1]);
 	p_id = &TxID[addr-1];
-#elif
-	//Make morgun
+#else
+	Morgun(6, &LedTime[0]);
 	p_id = &TxID[0];
 #endif
 
-	*p_id++;
+	(*p_id)++;
 	tx_buffer[0] = 0x7E;
 	crc = 0;
 
@@ -240,15 +235,13 @@ T_EVENT* GetPacket(void)
 				if (crc != rx_byte) break;			//CRC mismatch
 #ifdef _MAIN
 				cnt = GetCS();
-#elif
-				cnt = 0;
-#endif
 				if (RxID[cnt] == cur_ID) break;		//repeat packet
 				RxID[cnt] = cur_ID;
-#ifdef _MAIN
-				Morgun(cnt);
-#elif
-				//Make morgun
+				Morgun(cnt - 1, &LedTime[cnt - 1]);
+#else
+				if (RxID[0] == cur_ID) break;		//repeat packet
+				RxID[0] = cur_ID;
+				Morgun(6, &LedTime[0]);
 #endif
 				return &rx_event;
 
