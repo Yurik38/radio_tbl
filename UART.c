@@ -151,8 +151,8 @@ uchar GetByte(uchar *a)
 void SendPacket(T_EVENT* event)
 {
 	uchar i, crc;
-	uchar cnt;
 	uchar addr = event->addr;
+    uchar* ptr = (uchar*)event;
 
 	Delay1 = 5;
 
@@ -161,25 +161,28 @@ void SendPacket(T_EVENT* event)
 
 	tx_buffer[0] = 0x7E;
 	crc = 0;
-	ret = 1;
 
-	for (i = 1; i < sizeof (T_EVENT) + 1; i++)
+	for (i = 1; i < sizeof(T_EVENT) + 1; i++)
 	{
-		tx_buffer[cnt] = *event;
-		crc += *event;
-		event++;
+		tx_buffer[i] = *ptr;
+		crc += *ptr;
+		ptr++;
 	}
 	tx_buffer[i] = TxID[addr-1];
+    crc += tx_buffer[i];
 	i++;
 	tx_buffer[i] = crc;
 	i++;
-	SetCS(addr);
+//++++
+    //for debug only!! always CS = 1
+	SetCS(1);
+//	SetCS(addr);
 	Morgun(addr);
 	TxBuffer(tx_buffer, i);
 }
 
 /************************************************************************/
-T_EVENT GetPacket(void)
+T_EVENT* GetPacket(void)
 {
 	static uchar parse_state = 0;
 	static uchar crc, cnt, cur_ID;

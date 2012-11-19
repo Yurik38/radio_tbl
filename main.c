@@ -46,10 +46,10 @@ Fuses
 #define		_LedOffAll	LEDPORT |= 0x0F
 
 
-//#define		_SndOn		PORTD &= ~(0x0C)
-//#define		_SndOff		PORTD |= (0x0C)
-#define		_SndOn		PORTC_Bit3 = 0
-#define		_SndOff		PORTC_Bit3 = 1
+#define		_SndOn		PORTD &= ~(0x0C)
+#define		_SndOff		PORTD |= (0x0C)
+//#define		_SndOn		PORTC_Bit3 = 0
+//#define		_SndOff		PORTC_Bit3 = 1
 
 
 
@@ -309,6 +309,7 @@ void UpdateDispLap(uchar num)
 {
 	Flags &= ~(1 << UPDATE_DISP_LAP);
 	if (num > 9) return;
+    ClrStrDisp(0);
 	SetCursDisp(0,1);
 	putchar((num + 1) / 10 + 0x30);
 	putchar((num + 1) % 10 + 0x30);
@@ -389,7 +390,7 @@ void main(void)
 
 			case IDLE_ST:				//ready to begin
 				if (p_event == NULL) break;
-				if (p_event->pack.cmd == START_ROUND)	//event arrived
+				if (p_event->cmd == START_ROUND)	//event arrived
 				{
 					_CLI();
 					ReadyTimer = 3000;					//30 second
@@ -418,10 +419,11 @@ void main(void)
 						LapResult = Results;
 						Flags |= ((1 << UPDATE_DISP_LAP) + (1 << UPDATE_DISP_TIME) + (1 << TOUR_GO));
 						StateDev = TIME_OUT_START_ST;	//go to new state
+                        Result = 0;
 					}
 				}
 				if (p_event == NULL) break;				//no event
-				if (p_event->pack.cmd == TIME_STAMP)	//event arrived from strart point
+				if (p_event->cmd == TIME_STAMP)			//event arrived from strart point
 				{
 					if (Flags & ( 1 << OUT_OF_BASE))	//was out of base - start the rase
 					{
@@ -432,7 +434,10 @@ void main(void)
 						SndOn(SND_LONG);
 						ReadyTimer = 150;				//1.5 sec no reaction on event
 						StateDev = TOUR_ST;				//tour running
-						speed = p_event->pack.param0;
+						speed = p_event->param0;
+                        _CLI();
+                        Result = p_event->param0;
+                        _SEI();
 						PostEvent(SOUND, 2, TURN_BTN);
 					}
 					else 		//out of base wait event from start point again
@@ -442,21 +447,24 @@ void main(void)
 					}
 					break;
 				}
-				if (p_event->pack.cmd == CANCEL) StateDev = INIT_ST;
+				if (p_event->cmd == CANCEL) StateDev = INIT_ST;
 				break;
 
 			case TIME_OUT_START_ST:
 				if (Flags & (1 << UPDATE_DISP_LAP)) UpdateDispLap(LapNum);
 				if (Flags & (1 << UPDATE_DISP_TIME)) UpdateDispTime(Result);
 				if (p_event == NULL) break;				//no event
-				if (p_event->pack.cmd == TIME_STAMP)	// event arrived from start point
+				if (p_event->cmd == TIME_STAMP)			// event arrived from start point
 				{
 					if (Flags & ( 1 << OUT_OF_BASE))	//was out of base - start the rase
 					{
 						SndOn(SND_LONG);
 						ReadyTimer = 150;				//1.5 sec - no reaction on points event
 						StateDev = TOUR_ST;
-						speed = p_event->pack.param0;
+						speed = p_event->param0;
+                        _CLI();
+                        Result = p_event->param0;
+                        _SEI();
 						PostEvent(SOUND, 2, TURN_BTN);
 					}
 					else
@@ -466,7 +474,7 @@ void main(void)
 					}
 					break;
 				}
-				if (p_event->pack.cmd == CANCEL) StateDev = INIT_ST;
+				if (p_event->cmd == CANCEL) StateDev = INIT_ST;
 				break;
 
 			case TOUR_ST:								//Tour is in process
@@ -489,14 +497,12 @@ void main(void)
 				}
 				if (Flags & (1 << UPDATE_DISP_TIME)) UpdateDispTime(Result);
 				if (p_event == NULL) break;
-/*				if (p_event->pack.cmd == STOP)		//приехало событие финиша
+				if (p_event->cmd == TIME_STAMP)			//event from turn point
 				{
-					StateDev = STOP_ST;				//переходим в состояние финиша
-					break;
-				}*/
-				if (p_event->pack.cmd == TIME_STAMP)		//event from turn point
-				{
-					*LapResult = p_event->pack.param0;		//save time of pass
+					*LapResult = p_event->param0;		//save time of pass
+                    _CLI();
+                    Result = p_event->param0;
+                    _SEI();
 					Flags |= 1 << UPDATE_DISP_LAP;
 					if (LapNum >= 9)					//if it was the last pass
 					{
@@ -519,32 +525,32 @@ void main(void)
 						{
 							PostEvent(SOUND, 1, START_BTN);
 						}
+						if (LapNum == 8) SndOn(SND_SHORT_LONG);		//penultimate pass
+						else SndOn(SND_SHORT);
 						LapNum++;
 						LapResult++;
-						if (LapNum == 8) SndOn(SND_SHORT_LONG);		//penultimate pass
-						else SndOn(SND_SHORT_LONG);
 					}
 					break;
 				}
-				if (p_event->pack.cmd == CANCEL) StateDev = INIT_ST;
+				if (p_event->cmd == CANCEL) StateDev = INIT_ST;
 				break;
 
-			case STOP_ST:				//FINISH state
+			case STOP_ST:							//FINISH state
 				if (Flags & (1 << UPDATE_DISP_LAP)) UpdateDispLap(LapNum);
 				if (p_event == NULL) break;
-				if (p_event->pack.cmd == PREV)			//button "-"
+				if (p_event->cmd == PREV)			//button "-"
 				{
 					if (LapNum) LapNum--;
 					else LapNum = 9;
 					Flags |= (1 << UPDATE_DISP_LAP);
 				}
-				if (p_event->pack.cmd == NEXT)			//button "+"
+				if (p_event->cmd == NEXT)		//button "+"
 				{
 					if (LapNum != 9) LapNum++;
 					else LapNum = 0;
 					Flags |= (1 << UPDATE_DISP_LAP);
 				}
-				if (p_event->pack.cmd == CANCEL) StateDev = INIT_ST;	
+				if (p_event->cmd == CANCEL) StateDev = INIT_ST;	
 				break;
 			default:
 				break;
