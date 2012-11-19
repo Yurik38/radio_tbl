@@ -2,9 +2,8 @@
 #include "event.h"
 #include "UART.h"
 
-#define	RX_BUF_SIZE		4
+#define	RX_BUF_SIZE		8
 #define TX_BUF_SIZE		8
-
 
 extern uchar volatile	Delay1;
 
