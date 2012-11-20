@@ -308,14 +308,14 @@ void KeyHandler(void)
 void UpdateDispLap(uchar num)
 {
 	Flags &= ~(1 << UPDATE_DISP_LAP);
-	if (num > 10) return;
+	if (num > 9) num = 0;
     ClrStrDisp(0);
 	SetCursDisp(0,1);
 	putchar((num + 1) / 10 + 0x30);
 	putchar((num + 1) % 10 + 0x30);
 	SetCursDisp(0,8);
-	if (num < 2) PrintTime(0, Results[0]);
-	else PrintTime(0, (Results[num - 1] - Results[num - 2]));
+	if (num == 0) PrintTime(0, Results[0]);
+	else PrintTime(0, (Results[num] - Results[num - 1]));
 }
 
 /************************************************************************/
@@ -494,7 +494,7 @@ void main(void)
 						WriteStr("κμ/χ");
 						Flags &= ~(1 << UPDATE_DISP_LAP);
 					}
-					else UpdateDispLap(LapNum);
+					else UpdateDispLap(LapNum - 1);
 				}
 				if (Flags & (1 << UPDATE_DISP_TIME)) UpdateDispTime(Result);
 				if (p_event == NULL) break;
@@ -516,6 +516,7 @@ void main(void)
 						PostEvent(SOUND, 3, TURN_BTN);
 						SndOnRing(40);
 						StateDev = STOP_ST;
+                        UpdateDispTime(*LapResult);
 					}
 					else							//not last pass
 					{
@@ -538,7 +539,7 @@ void main(void)
 				break;
 
 			case STOP_ST:							//FINISH state
-				if (Flags & (1 << UPDATE_DISP_LAP)) UpdateDispLap(LapNum + 1);
+				if (Flags & (1 << UPDATE_DISP_LAP)) UpdateDispLap(LapNum);
 				if (p_event == NULL) break;
 				if (p_event->cmd == PREV)			//button "-"
 				{
