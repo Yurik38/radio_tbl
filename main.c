@@ -308,14 +308,14 @@ void KeyHandler(void)
 void UpdateDispLap(uchar num)
 {
 	Flags &= ~(1 << UPDATE_DISP_LAP);
-	if (num > 9) return;
+	if (num > 10) return;
     ClrStrDisp(0);
 	SetCursDisp(0,1);
 	putchar((num + 1) / 10 + 0x30);
 	putchar((num + 1) % 10 + 0x30);
 	SetCursDisp(0,8);
-	if (num == 0) PrintTime(0, Results[0]);
-	else PrintTime(0, (Results[num] - Results[num - 1]));
+	if (num < 2) PrintTime(0, Results[0]);
+	else PrintTime(0, (Results[num - 1] - Results[num - 2]));
 }
 
 /************************************************************************/
@@ -385,6 +385,8 @@ void main(void)
 				WriteStr(" Всего пультов 1");
 				StateDev = IDLE_ST;
 				Flags = 0;
+				LapNum = 0;
+				LapResult = Results;
 				memset(Results, 0, sizeof(Results));
 				break;
 
@@ -415,11 +417,9 @@ void main(void)
 					{
 						PostEvent(READY_TIME_OUT, 0, START_BTN);				//time expired. autostart tour. send event to start point
 						ClrAllDisp();
-						LapNum = 0;
-						LapResult = Results;
 						Flags |= ((1 << UPDATE_DISP_LAP) + (1 << UPDATE_DISP_TIME) + (1 << TOUR_GO));
 						StateDev = TIME_OUT_START_ST;	//go to new state
-                        Result = 0;
+						Result = 0;
 					}
 				}
 				if (p_event == NULL) break;				//no event
@@ -428,8 +428,6 @@ void main(void)
 					if (Flags & ( 1 << OUT_OF_BASE))	//was out of base - start the rase
 					{
 						ClrAllDisp();
-						LapNum = 0;
-						LapResult = Results;
 						Flags |= ((1 << UPDATE_DISP_LAP) + (1 << UPDATE_DISP_TIME) + (1 << TOUR_GO));
 						SndOn(SND_LONG);
 						ReadyTimer = 150;				//1.5 sec no reaction on event
@@ -540,7 +538,7 @@ void main(void)
 				break;
 
 			case STOP_ST:							//FINISH state
-				if (Flags & (1 << UPDATE_DISP_LAP)) UpdateDispLap(LapNum);
+				if (Flags & (1 << UPDATE_DISP_LAP)) UpdateDispLap(LapNum + 1);
 				if (p_event == NULL) break;
 				if (p_event->cmd == PREV)			//button "-"
 				{
